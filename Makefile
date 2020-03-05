@@ -18,8 +18,6 @@ all: $(targets)
 clean:
 	$(RM) $(toclean)
 
-.for  t in $(targets)
-toclean += $($t_objs)
-$t: $($t_deps) $($t_objs)
-	$(CC) $(LDFLAGS) -o $@ $($t_objs) $($t_ldflags) $($t_libs) $(LIBS)
-.endfor
+toclean += $(detab_objs)
+detab: $(detab_deps) $(detab_objs)
+	$(CC) $(LDFLAGS) -o $@ $($@_objs) $($@_ldflags) $($@_libs) $(LIBS)
