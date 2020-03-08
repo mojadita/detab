@@ -84,7 +84,6 @@ spaces(int pos,   /* column at which string s must go */
 static void
 process(FILE *f, char *n, FILE *o)
 {
-    fprintf(stderr, F("%s:\n"), n);
     int c;
     static int col = 0, sp = 0;
 
@@ -130,7 +129,7 @@ do_usage(void)
         "    stdout.\n"
         " -s <subst_string> Sets the substitution string.\n"
         "    Default is spaces\n"
-		" -t don't trim trailing spaces at end of line.\n",
+        " -t don't trim trailing spaces at end of line.\n",
         DEFAULT_TABSZ);
 } /* do_usage */
 
@@ -176,7 +175,7 @@ main(int argc, char **argv)
 
     if (argc > 0) {
         int i;
-		pid_t pid = getpid();
+        pid_t pid = getpid();
         for (i = 0; i < argc; i++) {
             FILE *in = fopen(argv[i], "rt");
             if (!in) {
@@ -185,22 +184,22 @@ main(int argc, char **argv)
                 flags |= FLAG_WARNING;
                 continue;
             }
-			char out_name[PATH_MAX];
-			snprintf(out_name, sizeof out_name,
-					 "%s-%d", argv[i], pid);
-			FILE *out = fopen(out_name, "wt");
-			if (!out) {
-				ERR("%s: %s\n",
-					out_name, strerror(errno));
-				flags |= FLAG_ERROR;
-				exit(EXIT_CODE);
-			}
+            char out_name[PATH_MAX];
+            snprintf(out_name, sizeof out_name,
+                     "%s-%d", argv[i], pid);
+            FILE *out = fopen(out_name, "wt");
+            if (!out) {
+                ERR("%s: %s\n",
+                    out_name, strerror(errno));
+                flags |= FLAG_ERROR;
+                exit(EXIT_CODE);
+            }
             process(in, argv[i], out);
             fclose(in); fclose(out);
-			if (rename(out_name, argv[i]) < 0) {
-				WRN("cannot rename %s to %s: %s\n",
-					argv[i], out_name, strerror(errno));
-			}
+            if (rename(out_name, argv[i]) < 0) {
+                WRN("cannot rename %s to %s: %s\n",
+                    out_name, argv[i], strerror(errno));
+            }
         }
     } else {
         process(stdin, "stdin", stdout);
