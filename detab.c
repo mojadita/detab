@@ -8,9 +8,11 @@
 #include <assert.h>
 #include <errno.h>
 #include <getopt.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #define F(_f) __FILE__ ":%d:%s:" _f, __LINE__, __func__
 
@@ -41,8 +43,8 @@ int tabsz = DEFAULT_TABSZ;
 #define     FLAG_TABSZ          (1 << 3)
 #define     FLAG_OUTFILE        (1 << 4)
 #define     FLAG_SUBSTSTRING    (1 << 5)
-#define		FLAG_RIGHT_ALIGN	(1 << 6)
-#define		FLAG_DONT_TRIM		(1 << 7)
+#define     FLAG_RIGHT_ALIGN    (1 << 6)
+#define     FLAG_DONT_TRIM      (1 << 7)
 
 #define     EXIT_MASK           (FLAG_ERROR | FLAG_WARNING)
 #define     EXIT_CODE           (flags & EXIT_MASK)
@@ -52,46 +54,31 @@ char *out_file;
 char *subst_string = DEFAULT_SUBSTSTRING;
 
 static void
-do_usage(void)
-{
-    fprintf(stderr,
-        "Uso " PROGNAME " [ options ] [ file ... ]\n"
-        "   -n <tabsz> Sets the tabsize to its argument.  Default is\n"
-        "     DEFAULT_TABSZ(%d).\n"
-        "   -o <outfile> Sets the output file to argument.  Default is\n"
-        "     stdout.\n"
-        "   -s <subst_string> Sets the substitution string.\n"
-        "      Default is spaces\n"
-        "   -h Show this help message.\n",
-        DEFAULT_TABSZ);
-} /* do_usage */
-
-static void
 spaces(int pos,   /* column at which string s must go */
-	   int n,     /* number of spaces that should be printed */
-	   char *s,   /* string to fill the space. */
-	   FILE *f)   /* output file */
+       int n,     /* number of spaces that should be printed */
+       char *s,   /* string to fill the space. */
+       FILE *f)   /* output file */
 {
-	if (n == 1) {
-		/* if we print only one
-		 * space, do it normally */
-		fputs(" ", f);
-		return;
-	}
+    if (n == 1) {
+        /* if we print only one
+         * space, do it normally */
+        fputs(" ", f);
+        return;
+    }
     int l = strlen(s);
-	int off0 = pos % l;
-	int len0 = l - off0;
-	if (len0 > n) len0 = n;
-	if (len0 > 0) {
-		fprintf(f, "%.*s", len0, s + off0);
-		n -= len0;
-	}
-	while (n >= l) {
+    int off0 = pos % l;
+    int len0 = l - off0;
+    if (len0 > n) len0 = n;
+    if (len0 > 0) {
+        fprintf(f, "%.*s", len0, s + off0);
+        n -= len0;
+    }
+    while (n >= l) {
         fputs(s, f);
         n -= l;
     }
-	if (n > 0)
-		fprintf(f, "%.*s", n, s);
+    if (n > 0)
+        fprintf(f, "%.*s", n, s);
 }
 
 static void
@@ -112,9 +99,9 @@ process(FILE *f, char *n, FILE *o)
             sp++; break;
 
         case '\n':
-			if (flags & FLAG_DONT_TRIM) {
-				spaces(col, sp, subst_string, o);
-			}
+            if (flags & FLAG_DONT_TRIM) {
+                spaces(col, sp, subst_string, o);
+            }
             col = sp = 0;
             fputc('\n', o);
             break;
@@ -131,12 +118,31 @@ process(FILE *f, char *n, FILE *o)
     } /* while */
 } /* process */
 
+static void
+do_usage(void)
+{
+    fprintf(stderr,
+        "Uso " PROGNAME " [ options ] [ file ... ]\n"
+        " -h Show this help message.\n"
+        " -n <tabsz> Sets the tabsize to its argument.  Default is\n"
+        "    DEFAULT_TABSZ(%d).\n"
+        " -o <outfile> Sets the output file to argument.  Default is\n"
+        "    stdout.\n"
+        " -s <subst_string> Sets the substitution string.\n"
+        "    Default is spaces\n"
+		" -t don't trim trailing spaces at end of line.\n",
+        DEFAULT_TABSZ);
+} /* do_usage */
+
 int
 main(int argc, char **argv)
 {
     int opt;
-    while((opt = getopt(argc, argv, "n:ho:S:s:t")) != EOF) {
+    while((opt = getopt(argc, argv, "hn:s:t")) != EOF) {
         switch(opt) {
+        case 'h':
+            flags |= FLAG_DOUSAGE;
+            break;
         case 'n':
             tabsz = atol(optarg);
             flags |= FLAG_TABSZ;
@@ -147,26 +153,16 @@ main(int argc, char **argv)
                 flags |= FLAG_WARNING;
             }
             break;
-        case 'h':
-            flags |= FLAG_DOUSAGE;
-            break;
-        case 'o':
-            flags |= FLAG_OUTFILE;
-            out_file = optarg;
-            break;
-        case 'S':
-			flags |= FLAG_RIGHT_ALIGN;
-			/* no break here */
         case 's':
             flags |= FLAG_SUBSTSTRING;
             subst_string = optarg;
             break;
-		case 't':
-			flags |= FLAG_DONT_TRIM;
-			break;
+        case 't':
+            flags |= FLAG_DONT_TRIM;
+            break;
         default:
             ERR("invalid option: %c\n", opt);
-            flags |= FLAG_ERROR;
+            flags |= FLAG_WARNING | FLAG_DOUSAGE;
             break;
         } /* switch */
     } /* while */
@@ -178,31 +174,36 @@ main(int argc, char **argv)
         exit(EXIT_CODE);
     }
 
-    FILE *out = stdout;
-
-    if (flags & FLAG_OUTFILE) {
-        out = fopen(out_file, "w");
-        if (!out) {
-            ERR("%s: %s\n", out_file, strerror(errno));
-            exit(EXIT_CODE);
-        }
-    }
-
     if (argc > 0) {
         int i;
+		pid_t pid = getpid();
         for (i = 0; i < argc; i++) {
-            FILE *f = fopen(argv[i], "rt");
-            if (!f) {
+            FILE *in = fopen(argv[i], "rt");
+            if (!in) {
                 WRN("%s: %s\n",
                     argv[i], strerror(errno));
-                flags |= FLAG_ERROR;
-                break;
+                flags |= FLAG_WARNING;
+                continue;
             }
-            process(f, argv[i], out);
-            fclose(f);
+			char out_name[PATH_MAX];
+			snprintf(out_name, sizeof out_name,
+					 "%s-%d", argv[i], pid);
+			FILE *out = fopen(out_name, "wt");
+			if (!out) {
+				ERR("%s: %s\n",
+					out_name, strerror(errno));
+				flags |= FLAG_ERROR;
+				exit(EXIT_CODE);
+			}
+            process(in, argv[i], out);
+            fclose(in); fclose(out);
+			if (rename(out_name, argv[i]) < 0) {
+				WRN("cannot rename %s to %s: %s\n",
+					argv[i], out_name, strerror(errno));
+			}
         }
     } else {
-        process(stdin, "stdin", out);
+        process(stdin, "stdin", stdout);
     }
     exit(EXIT_CODE);
 } /* main */
