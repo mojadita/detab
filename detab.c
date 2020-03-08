@@ -42,6 +42,7 @@ int tabsz = DEFAULT_TABSZ;
 #define     FLAG_OUTFILE        (1 << 4)
 #define     FLAG_SUBSTSTRING    (1 << 5)
 #define		FLAG_RIGHT_ALIGN	(1 << 6)
+#define		FLAG_DONT_TRIM		(1 << 7)
 
 #define     EXIT_MASK           (FLAG_ERROR | FLAG_WARNING)
 #define     EXIT_CODE           (flags & EXIT_MASK)
@@ -61,29 +62,36 @@ do_usage(void)
         "     stdout.\n"
         "   -s <subst_string> Sets the substitution string.\n"
         "      Default is spaces\n"
-		"   -S <subst_string> Same as before, but uses right\n"
-		"      part of string as tail\n"
         "   -h Show this help message.\n",
         DEFAULT_TABSZ);
 } /* do_usage */
 
 static void
-spaces(int n, FILE *f, char *s)
+spaces(int pos,   /* column at which string s must go */
+	   int n,     /* number of spaces that should be printed */
+	   char *s,   /* string to fill the space. */
+	   FILE *f)   /* output file */
 {
+	if (n == 1) {
+		/* if we print only one
+		 * space, do it normally */
+		fputs(" ", f);
+		return;
+	}
     int l = strlen(s);
-	if (flags & FLAG_RIGHT_ALIGN) {
-		int len = n % l;
-		fprintf(f, "%.*s",
-			l, s + l - len);
+	int off0 = pos % l;
+	int len0 = l - off0;
+	if (len0 > n) len0 = n;
+	if (len0 > 0) {
+		fprintf(f, "%.*s", len0, s + off0);
+		n -= len0;
 	}
 	while (n >= l) {
         fputs(s, f);
         n -= l;
     }
-	if (~flags & FLAG_RIGHT_ALIGN) {
-		fprintf(f, "%.*s",
-			n, s);
-	}
+	if (n > 0)
+		fprintf(f, "%.*s", n, s);
 }
 
 static void
@@ -97,21 +105,24 @@ process(FILE *f, char *n, FILE *o)
         int n;
         switch(c) {
         case '\t':
-            n = tabsz - col % tabsz;
-            sp += n; col += n; break;
+            n = tabsz - (col + sp) % tabsz;
+            sp += n; break;
 
         case ' ':
-            sp++; col++; break;
+            sp++; break;
 
         case '\n':
+			if (flags & FLAG_DONT_TRIM) {
+				spaces(col, sp, subst_string, o);
+			}
             col = sp = 0;
             fputc('\n', o);
             break;
 
         default:
             if (sp) {
-                spaces(sp, o, subst_string);
-                sp = 0;
+                spaces(col, sp, subst_string, o);
+                col += sp; sp = 0;
             }
             fputc(c, o);
             col++;
@@ -124,7 +135,7 @@ int
 main(int argc, char **argv)
 {
     int opt;
-    while((opt = getopt(argc, argv, "n:ho:S:s:")) != EOF) {
+    while((opt = getopt(argc, argv, "n:ho:S:s:t")) != EOF) {
         switch(opt) {
         case 'n':
             tabsz = atol(optarg);
@@ -150,6 +161,9 @@ main(int argc, char **argv)
             flags |= FLAG_SUBSTSTRING;
             subst_string = optarg;
             break;
+		case 't':
+			flags |= FLAG_DONT_TRIM;
+			break;
         default:
             ERR("invalid option: %c\n", opt);
             flags |= FLAG_ERROR;
