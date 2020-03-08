@@ -41,6 +41,7 @@ int tabsz = DEFAULT_TABSZ;
 #define     FLAG_TABSZ          (1 << 3)
 #define     FLAG_OUTFILE        (1 << 4)
 #define     FLAG_SUBSTSTRING    (1 << 5)
+#define		FLAG_RIGHT_ALIGN	(1 << 6)
 
 #define     EXIT_MASK           (FLAG_ERROR | FLAG_WARNING)
 #define     EXIT_CODE           (flags & EXIT_MASK)
@@ -60,19 +61,29 @@ do_usage(void)
         "     stdout.\n"
         "   -s <subst_string> Sets the substitution string.\n"
         "      Default is spaces\n"
+		"   -S <subst_string> Same as before, but uses right\n"
+		"      part of string as tail\n"
         "   -h Show this help message.\n",
         DEFAULT_TABSZ);
 } /* do_usage */
 
 static void
-spaces(size_t n, FILE *f, char *s)
+spaces(int n, FILE *f, char *s)
 {
-    size_t l = strlen(s);
-    while (n >= l) {
+    int l = strlen(s);
+	if (flags & FLAG_RIGHT_ALIGN) {
+		int len = n % l;
+		fprintf(f, "%.*s",
+			l, s + l - len);
+	}
+	while (n >= l) {
         fputs(s, f);
         n -= l;
     }
-    fprintf(f, "%.*s", (int)n, s);
+	if (~flags & FLAG_RIGHT_ALIGN) {
+		fprintf(f, "%.*s",
+			n, s);
+	}
 }
 
 static void
@@ -113,7 +124,7 @@ int
 main(int argc, char **argv)
 {
     int opt;
-    while((opt = getopt(argc, argv, "n:ho:s:")) != EOF) {
+    while((opt = getopt(argc, argv, "n:ho:S:s:")) != EOF) {
         switch(opt) {
         case 'n':
             tabsz = atol(optarg);
@@ -132,6 +143,9 @@ main(int argc, char **argv)
             flags |= FLAG_OUTFILE;
             out_file = optarg;
             break;
+        case 'S':
+			flags |= FLAG_RIGHT_ALIGN;
+			/* no break here */
         case 's':
             flags |= FLAG_SUBSTSTRING;
             subst_string = optarg;
