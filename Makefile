@@ -7,7 +7,7 @@
 RM             ?= rm -f
 INSTALL        ?= /usr/bin/install
 
-targets         = detab
+targets         = detab tabber
 toclean         = $(targets)
 
 prefix         ?= $(HOME)
@@ -22,6 +22,11 @@ detab_deps      =
 detab_libs      =
 detab_ldflags   =
 
+tabber_objs      = tabber.o
+tabber_deps      =
+tabber_libs      =
+tabber_ldflags   =
+
 all: $(targets)
 clean:
 	$(RM) $(toclean)
@@ -30,4 +35,6 @@ install: $(targets)
 
 toclean += $(detab_objs)
 detab: $(detab_deps) $(detab_objs)
+	$(CC) $(LDFLAGS) -o $@ $($@_objs) $($@_ldflags) $($@_libs) $(LIBS)
+tabber: $(tabber_deps) $(tabber_objs)
 	$(CC) $(LDFLAGS) -o $@ $($@_objs) $($@_ldflags) $($@_libs) $(LIBS)
