@@ -159,8 +159,8 @@ do_usage(void)
 {
     fprintf(stderr,
         "Uso %s [ options ] [ file ... ]\n"
-		" -c Prints debugging tabs in color.\n"
-		" -d Activates debugging output instead of plain tabs.\n"
+        " -c Prints debugging tabs in color.\n"
+        " -d Activates debugging output instead of plain tabs.\n"
         " -h Show this help message.\n"
         " -n <tabsz> Sets the tabsize to its argument.  Default is\n"
         "    DEFAULT_TABSZ(%d).\n"
