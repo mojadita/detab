@@ -137,7 +137,7 @@ static void
 do_usage(void)
 {
     fprintf(stderr,
-        "Uso " PROGNAME " [ options ] [ file ... ]\n"
+        "Usage " PROGNAME " [ options ] [ file ... ]\n"
         " -h Show this help message.\n"
         " -n <tabsz> Sets the tabsize to its argument.  Default is\n"
         "    DEFAULT_TABSZ(%d).\n"
