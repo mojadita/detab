@@ -14,10 +14,14 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#ifndef DEBUG
+#define DEBUG                   (0)
+#endif
+
 #define F(_f) __FILE__ ":%d:%s:" _f, __LINE__, __func__
 
-#define WRN(_f, ...)    fprintf(stderr, F("WARNG: " _f), ##__VA_ARGS__)
-#define ERR(_f, ...)    fprintf(stderr, F("ERROR: " _f), ##__VA_ARGS__)
+#define WRN(_f, ...)            fprintf(stderr, F("WARNG: " _f), ##__VA_ARGS__)
+#define ERR(_f, ...)            fprintf(stderr, F("ERROR: " _f), ##__VA_ARGS__)
 
 #ifndef PROGNAME
 #define PROGNAME                "detab"
@@ -37,17 +41,17 @@
 
 int tabsz = DEFAULT_TABSZ;
 
-#define     FLAG_WARNING        (1 << 0)
-#define     FLAG_ERROR          (1 << 1)
-#define     FLAG_DOUSAGE        (1 << 2)
-#define     FLAG_TABSZ          (1 << 3)
-#define     FLAG_OUTFILE        (1 << 4)
-#define     FLAG_SUBSTSTRING    (1 << 5)
-#define     FLAG_RIGHT_ALIGN    (1 << 6)
-#define     FLAG_DONT_TRIM      (1 << 7)
+#define FLAG_WARNING            (1 << 0)
+#define FLAG_ERROR              (1 << 1)
+#define FLAG_DOUSAGE            (1 << 2)
+#define FLAG_TABSZ              (1 << 3)
+#define FLAG_OUTFILE            (1 << 4)
+#define FLAG_SUBSTSTRING        (1 << 5)
+#define FLAG_RIGHT_ALIGN        (1 << 6)
+#define FLAG_DONT_TRIM          (1 << 7)
 
-#define     EXIT_MASK           (FLAG_ERROR | FLAG_WARNING)
-#define     EXIT_CODE           (flags & EXIT_MASK)
+#define EXIT_MASK               (FLAG_ERROR | FLAG_WARNING)
+#define EXIT_CODE               (flags & EXIT_MASK)
 
 int flags;
 char *out_file;
@@ -59,27 +63,35 @@ spaces(int pos,   /* column at which string s must go */
        char *s,   /* string to fill the space. */
        FILE *f)   /* output file */
 {
-    if (n == 1) {
-        /* if we print only one
-         * space, do it normally */
-        fputs(" ", f);
-        return;
-    }
-    int l = strlen(s);
-    int off0 = pos % l;
-    int len0 = l - off0;
-    if (len0 > n) len0 = n;
-    if (len0 > 0) {
-        fprintf(f, "%.*s", len0, s + off0);
-        n -= len0;
-    }
-    while (n >= l) {
+    int len = strlen(s);
+    while (n >= len) {
         fputs(s, f);
-        n -= l;
+        n -= len;
     }
     if (n > 0)
         fprintf(f, "%.*s", n, s);
 }
+
+static void
+tabs(int pos,     /* column at which string s must start */
+       int n,     /* number of spaces that should be printed */
+       char *s,   /* string to fill the space. */
+       FILE *f)   /* output file */
+{
+    int end = pos + n; /* ending position */
+    int next_tab = pos - (pos % tabsz) + tabsz;
+    while (next_tab <= end) {
+        fputc('\t', f);
+        pos = next_tab;
+        next_tab += tabsz;
+    }
+    /* next_tab > pos */
+    n = end - pos; /* need still to write */
+    spaces(pos, n, s, f);
+}
+
+static void (*tabs_spaces)(int pos, int n, char *s, FILE *f)
+    = spaces;
 
 static void
 process(FILE *f, char *n, FILE *o)
@@ -99,7 +111,7 @@ process(FILE *f, char *n, FILE *o)
 
         case '\n':
             if (flags & FLAG_DONT_TRIM) {
-                spaces(col, sp, subst_string, o);
+                tabs_spaces(col, sp, subst_string, o);
             }
             col = sp = 0;
             fputc('\n', o);
@@ -107,7 +119,7 @@ process(FILE *f, char *n, FILE *o)
 
         default:
             if (sp) {
-                spaces(col, sp, subst_string, o);
+                tabs_spaces(col, sp, subst_string, o);
                 col += sp; sp = 0;
             }
             fputc(c, o);
@@ -127,17 +139,42 @@ do_usage(void)
         "    DEFAULT_TABSZ(%d).\n"
         " -o <outfile> Sets the output file to argument.  Default is\n"
         "    stdout.\n"
-        " -s <subst_string> Sets the substitution string.\n"
+        " -s act as detab (use spaces).\n"
+        " -S <subst_string> Sets the substitution string.\n"
         "    Default is spaces\n"
-        " -t don't trim trailing spaces at end of line.\n",
+        " -t act as tabber (use tabs).\n"
+        " -T don't trim trailing spaces at end of line.\n",
         DEFAULT_TABSZ);
 } /* do_usage */
+
+struct pers {
+    char *name;
+    void (*func)(int pos, int n, char *s, FILE *f);
+    int flags_on;
+    int flags_switch;
+} personalities[] = {
+    { .name = "detab",  .func = spaces },
+    { .name = "entab",  .func = tabs },
+    { .name = NULL,     .func = NULL }
+};
 
 int
 main(int argc, char **argv)
 {
     int opt;
-    while((opt = getopt(argc, argv, "hn:s:t")) != EOF) {
+    char *progname = strchr(argv[0], '/');
+    if (progname) progname++;
+    else progname = argv[0];
+
+    for (struct pers *p = personalities; p->name; p++) {
+        if (strcmp(p->name, progname) == 0) {
+            tabs_spaces = p->func;
+            flags |= p->flags_on;
+            flags ^= p->flags_switch;
+            break;
+        }
+    }
+    while((opt = getopt(argc, argv, "hn:sS:tT")) != EOF) {
         switch(opt) {
         case 'h':
             flags |= FLAG_DOUSAGE;
@@ -152,12 +189,18 @@ main(int argc, char **argv)
                 flags |= FLAG_WARNING;
             }
             break;
-        case 's':
+        case 'S':
             flags |= FLAG_SUBSTSTRING;
             subst_string = optarg;
             break;
-        case 't':
+        case 's':
+            tabs_spaces = spaces;
+            break;
+        case 'T':
             flags |= FLAG_DONT_TRIM;
+            break;
+        case 't':
+            tabs_spaces = tabs;
             break;
         default:
             ERR("invalid option: %c\n", opt);
