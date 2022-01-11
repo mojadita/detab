@@ -1,3 +1,5 @@
 detab
 entab
+entab.1
+*.gz
 *.o

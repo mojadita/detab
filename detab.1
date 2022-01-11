@@ -1,0 +1,84 @@
+.Dd $Mdocdate$
+.Dt DETAB/ENTAB 1
+.OS
+.Sh NAME
+.Nm detab ,
+.Nm entab
+.Nd a program to eliminate/insert tabs from a list of files.
+.Sh SYNOPSIS
+.Nm detab
+.Op Fl hstT
+.Op Fl n Ar tabsize
+.Op Fl S Ar space_subst_string
+.Op Ar file Cm ...
+.Nm entab
+.Op Fl hstT
+.Op Fl n Ar tabsize
+.Op Fl S Ar space_subst_string
+.Op Ar file Cm ...
+.Sh DESCRIPTION
+The
+.Nm detab
+program eliminates all tabs (based on specified or default
+tabsize) an substitutes them by spaces in the program.
+It converts every space in the correct number of spaces to
+generate a line with the same appearance as the original file.
+.Pp
+The
+.Nm entab
+program eliminates all spaces and substitutes them by the minimum
+amount of tabs necessary to generate the same spacing in the
+file.
+.Pp
+Both programs operate on the specified files in the command line
+(this is, the file acts as input to the program and the output to
+it, so the effect is that the whole file is tabbed or detabbed),
+or act as filters (operate on stdin and generate the output to
+stdout) when no filename is specified.
+.Sh OPTIONS
+.Bl -tag 
+.It Fl h
+This flag causes a small help screen to appear as
+output, that allows to consult the valid available options for
+each program.
+.It Fl s
+Makes the called program to operate as
+.Nm detab ,
+eliminating all tabs from the file and substituting them by
+spaces.  Both programs are links to the same executable so this
+option has the same result as if
+.Nm detab
+had been called.
+.It Fl t
+This flag makes the called program to operate as
+.Nm entab
+substituting the spaces by as many tabs as possible to make the
+output to appear as the original file.
+.It Fl T
+By default,
+.Nm detab
+or
+.Nm entab
+trim all whitespace at the end of the file lines.
+By using this option, final space is subject to modification as
+interword spacing but it is not eliminated from the file.
+.It Fl n Ar tabsize
+Allows to indicate the tab size.
+Using
+.Nm detab
+with some tab size, and piping its output to
+.Nm entab
+with a different tab size is some means of retabbing a file with
+a different tabsize to allow printing on a hardwired tab size
+terminal.
+.It Fl S Ar space_subst_string
+Uses
+.Ar space_subst_string
+as the string to be substituted for spacing.
+The string is reused again and again, concatenating it to itself
+to show the spacing physically.
+Only the printed spaces are substituted by
+.Ar space_subst_string .
+.El
+.Sh AUTHOR
+.An "Luis Colorado" Aq Mt luiscoloradourcola@gmail.com
