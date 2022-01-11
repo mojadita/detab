@@ -18,10 +18,23 @@
 #define DEBUG                   (0)
 #endif
 
-#define F(_f) __FILE__ ":%d:%s:" _f, __LINE__, __func__
+#define F(_f) "%s:"__FILE__":%d:%s:"_f, \
+        progname,__LINE__,__func__
 
-#define WRN(_f, ...)            fprintf(stderr, F("WARNG: " _f), ##__VA_ARGS__)
-#define ERR(_f, ...)            fprintf(stderr, F("ERROR: " _f), ##__VA_ARGS__)
+#define WRN(_f, ...) do {               \
+            flags |= FLAG_WARNING;      \
+            fprintf(stderr,             \
+                    F("WARNG: " _f),    \
+                    ##__VA_ARGS__);     \
+        } while (0)
+
+#define ERR(_f, ...)  do {              \
+            flags |= FLAG_ERROR;        \
+            fprintf(stderr,             \
+                    F("ERROR: " _f),    \
+                    ##__VA_ARGS__);     \
+            exit(EXIT_CODE);            \
+        } while (0)
 
 #ifndef PROGNAME
 #define PROGNAME                "detab"
@@ -36,7 +49,8 @@
 #endif
 
 #ifndef DEFAULT_SUBSTSTRING
-#define DEFAULT_SUBSTSTRING     "                           "
+#define DEFAULT_SUBSTSTRING     \
+        "                   "
 #endif
 
 int tabsz = DEFAULT_TABSZ;
@@ -49,6 +63,7 @@ int tabsz = DEFAULT_TABSZ;
 #define FLAG_SUBSTSTRING        (1 << 5)
 #define FLAG_RIGHT_ALIGN        (1 << 6)
 #define FLAG_DONT_TRIM          (1 << 7)
+#define FLAG_ANYFILETOUCHED     (1 << 8)
 
 #define EXIT_MASK               (FLAG_ERROR | FLAG_WARNING)
 #define EXIT_CODE               (flags & EXIT_MASK)
@@ -56,6 +71,7 @@ int tabsz = DEFAULT_TABSZ;
 int flags;
 char *out_file;
 char *subst_string = DEFAULT_SUBSTSTRING;
+char *progname;
 
 static void
 spaces(int pos,   /* column at which string s must go */
@@ -137,7 +153,8 @@ static void
 do_usage(void)
 {
     fprintf(stderr,
-        "Usage " PROGNAME " [ options ] [ file ... ]\n"
+        "Usage %s [ options ] [ file ... ]\n"
+		" -f <file> Process file onto itself.\n"
         " -h Show this help message.\n"
         " -n <tabsz> Sets the tabsize to its argument.  Default is\n"
         "    DEFAULT_TABSZ(%d).\n"
@@ -148,6 +165,7 @@ do_usage(void)
         "    Default is spaces\n"
         " -t act as tabber (use tabs).\n"
         " -T don't trim trailing spaces at end of line.\n",
+		progname,
         DEFAULT_TABSZ);
 } /* do_usage */
 
@@ -166,7 +184,7 @@ int
 main(int argc, char **argv)
 {
     int opt;
-    char *progname = strchr(argv[0], '/');
+    progname = strchr(argv[0], '/');
     if (progname) progname++;
     else progname = argv[0];
 
@@ -178,19 +196,51 @@ main(int argc, char **argv)
             break;
         }
     }
-    while((opt = getopt(argc, argv, "hn:sS:tT")) != EOF) {
+    while((opt = getopt(argc, argv, "f:hn:sS:tT")) != EOF) {
         switch(opt) {
+        case 'f': {
+                pid_t pid = getpid();
+                flags |= FLAG_ANYFILETOUCHED;
+                FILE *in = fopen(optarg, "rt");
+                if (!in) {
+                    WRN("%s: %s\n",
+                        optarg, strerror(errno));
+                    break;
+                }
+                char out_name[PATH_MAX];
+                snprintf(out_name, sizeof out_name,
+                         "%s-%s.%d", progname, optarg, pid);
+                FILE *out = fopen(out_name, "wt");
+                if (!out) {
+                    ERR("%s: %s\n",
+                        out_name, strerror(errno));
+                }
+                process(in, optarg, out);
+                fclose(in);
+                fclose(out);
+                if (rename(out_name, optarg) < 0) {
+                    WRN("cannot rename %s to %s: %s\n",
+                        out_name, optarg, strerror(errno));
+                    break;
+                }
+            }
+            break;
         case 'h':
             flags |= FLAG_DOUSAGE;
             break;
-        case 'n':
-            tabsz = atol(optarg);
-            flags |= FLAG_TABSZ;
-            if ( tabsz < MIN_TABSZ ) {
-                WRN("tabsz(%d) adjusted to %d\n",
-                    tabsz, DEFAULT_TABSZ);
-                tabsz = DEFAULT_TABSZ;
-                flags |= FLAG_WARNING;
+        case 'n': {
+                int res = sscanf(optarg, "%d", &tabsz);
+                if (res != 1) {
+                    WRN("couldn't parse int argument('%s')\n",
+                            optarg);
+                    break;
+                }
+                flags |= FLAG_TABSZ;
+                if ( tabsz < MIN_TABSZ ) {
+                    WRN("tabsz(%d) adjusted to %d\n",
+                        tabsz, DEFAULT_TABSZ);
+                    tabsz = DEFAULT_TABSZ;
+                }
             }
             break;
         case 'S':
@@ -222,33 +272,18 @@ main(int argc, char **argv)
 
     if (argc > 0) {
         int i;
-        pid_t pid = getpid();
         for (i = 0; i < argc; i++) {
-            FILE *in = fopen(argv[i], "rt");
+            FILE *in = fopen(argv[i], "r");
             if (!in) {
-                WRN("%s: %s\n",
-                    argv[i], strerror(errno));
-                flags |= FLAG_WARNING;
-                continue;
+                ERR("%s: %s (errno = %d)\n",
+                        argv[i], strerror(errno),
+                        errno);
+                /* NOTREACHED */
             }
-            char out_name[PATH_MAX];
-            snprintf(out_name, sizeof out_name,
-                     "%s-%d", argv[i], pid);
-            FILE *out = fopen(out_name, "wt");
-            if (!out) {
-                ERR("%s: %s\n",
-                    out_name, strerror(errno));
-                flags |= FLAG_ERROR;
-                exit(EXIT_CODE);
-            }
-            process(in, argv[i], out);
-            fclose(in); fclose(out);
-            if (rename(out_name, argv[i]) < 0) {
-                WRN("cannot rename %s to %s: %s\n",
-                    out_name, argv[i], strerror(errno));
-            }
+            process(in, argv[i], stdout);
+            fclose(in);
         }
-    } else {
+    } else if (!(flags & FLAG_ANYFILETOUCHED)){
         process(stdin, "stdin", stdout);
     }
     exit(EXIT_CODE);
