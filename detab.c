@@ -36,7 +36,7 @@
 #endif
 
 #ifndef DEFAULT_SUBSTSTRING
-#define DEFAULT_SUBSTSTRING     "        "
+#define DEFAULT_SUBSTSTRING     "                           "
 #endif
 
 int tabsz = DEFAULT_TABSZ;
@@ -78,6 +78,10 @@ tabs(int pos,     /* column at which string s must start */
        char *s,   /* string to fill the space. */
        FILE *f)   /* output file */
 {
+    if (n == 1) {
+        fputc(s[0], f);
+        return;
+    }
     int end = pos + n; /* ending position */
     int next_tab = pos - (pos % tabsz) + tabsz;
     while (next_tab <= end) {
