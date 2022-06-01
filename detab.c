@@ -15,66 +15,66 @@
 #include <unistd.h>
 
 #ifndef DEBUG
-#define DEBUG (0)
+#define DEBUG                   (0)
 #endif
 
 #define F(_f) "%s:"__FILE__":%d:%s:"_f, \
-            progname,__LINE__,__func__
+        progname,__LINE__,__func__
 
 #define WRN(_f, ...) do {               \
-        flags |= FLAG_WARNING;          \
-        fprintf(stderr,                 \
-                F("WARNG: " _f),        \
-                ##__VA_ARGS__);         \
-    } while (0)
+            flags |= FLAG_WARNING;      \
+            fprintf(stderr,             \
+                    F("WARNG: " _f),    \
+                    ##__VA_ARGS__);     \
+        } while (0)
 
-#define ERR(_f, ...) do {               \
-        flags |= FLAG_ERROR;            \
-        fprintf(stderr,                 \
-                F("ERROR: " _f),        \
-                ##__VA_ARGS__);         \
-        exit(EXIT_CODE);                \
-    } while (0)
+#define ERR(_f, ...)  do {              \
+            flags |= FLAG_ERROR;        \
+            fprintf(stderr,             \
+                    F("ERROR: " _f),    \
+                    ##__VA_ARGS__);     \
+            exit(EXIT_CODE);            \
+        } while (0)
 
 #ifndef MIN_TABSZ
-#define MIN_TABSZ                     (2)
+#define MIN_TABSZ               (2)
 #endif /* MIN_TABSZ */
 
 #ifndef DEFAULT_TABSZ
-#define DEFAULT_TABSZ                 (4)
+#define DEFAULT_TABSZ           (4)
 #endif /* DEFAULT_TABSZ */
 
 #ifndef DEFAULT_SUBSTSTRING
-#define DEFAULT_SUBSTSTRING             \
-            " "
+#define DEFAULT_SUBSTSTRING     \
+        "                   "
 #endif /* DEFAULT_SUBSTRING */
 
 int tabsz = DEFAULT_TABSZ;
 
-#define FLAG_WARNING             (1 << 0)
-#define FLAG_ERROR               (1 << 1)
-#define FLAG_DOUSAGE             (1 << 2)
-#define FLAG_TABSZ               (1 << 3)
-#define FLAG_OUTFILE             (1 << 4)
-#define FLAG_SUBSTSTRING         (1 << 5)
-#define FLAG_RIGHT_ALIGN         (1 << 6)
-#define FLAG_DONT_TRIM           (1 << 7)
-#define FLAG_ANYFILETOUCHED      (1 << 8)
-#define FLAG_FILTER_MODE         (1 << 9)
+#define FLAG_WARNING            (1 << 0)
+#define FLAG_ERROR              (1 << 1)
+#define FLAG_DOUSAGE            (1 << 2)
+#define FLAG_TABSZ              (1 << 3)
+#define FLAG_OUTFILE            (1 << 4)
+#define FLAG_SUBSTSTRING        (1 << 5)
+#define FLAG_RIGHT_ALIGN        (1 << 6)
+#define FLAG_DONT_TRIM          (1 << 7)
+#define FLAG_ANYFILETOUCHED     (1 << 8)
+#define FLAG_FILTER_MODE        (1 << 9)
 
 #define EXIT_MASK (FLAG_ERROR | FLAG_WARNING)
 #define EXIT_CODE (flags & EXIT_MASK)
 
-int   flags;
+int flags;
 char *out_file;
 char *subst_string = DEFAULT_SUBSTSTRING;
 char *progname;
 
 static void
-spaces( int pos, /* column at which string s must go */
-        int n,   /* number of spaces that should be printed */
-        char *s, /* string to fill the space. */
-        FILE *f) /* output file */
+spaces(int pos,   /* column at which string s must go */
+       int n,     /* number of spaces that should be printed */
+       char *s,   /* string to fill the space. */
+       FILE *f)   /* output file */
 {
     int len = strlen(s);
     while (n >= len) {
@@ -86,10 +86,10 @@ spaces( int pos, /* column at which string s must go */
 }
 
 static void
-tabs(   int pos, /* column at which string s must start */
-        int n,   /* number of spaces that should be printed */
-        char *s, /* string to fill the space. */
-        FILE *f) /* output file */
+tabs(int pos, /* column at which string s must start */
+     int n,   /* number of spaces that should be printed */
+     char *s, /* string to fill the space. */
+     FILE *f) /* output file */
 {
     if (n == 1) {
         fputc(s[0], f);
@@ -103,12 +103,12 @@ tabs(   int pos, /* column at which string s must start */
         next_tab += tabsz;
     }
     /* next_tab > pos */
-    n = end - pos;     /* need still to write */
+    n = end - pos; /* need still to write */
     spaces(pos, n, s, f);
 }
 
 static void (*tabs_spaces)(int pos, int n, char *s, FILE *f)
-        = spaces;
+    = spaces;
 
 static void
 process(FILE *f, char *n, FILE *o)
@@ -150,21 +150,21 @@ static void
 do_usage(void)
 {
     fprintf(stderr,
-            "Usage %s [ options ] [ file ... ]\n"
-            "  -F Activates non filter mode. Default\n"
-            "  -f Activates filter mode.\n"
-            "  -h Show this help message.\n"
-            "  -n <tabsz> Sets the tabsize to its argument. Default is\n"
-            "     DEFAULT_TABSZ(%d).\n"
-            "  -o <outfile> Sets the output file to argument. Default is\n"
-            "     stdout.\n"
-            "  -s act as detab (use spaces).\n"
-            "  -S <subst_string> Sets the substitution string.\n"
-            "     Default is spaces\n"
-            "  -t act as tabber (use tabs).\n"
-            "  -T don't trim trailing spaces at end of line.\n",
-            progname,
-            DEFAULT_TABSZ);
+        "Usage %s [ options ] [ file ... ]\n"
+        " -F Activates non filter mode. Default\n"
+        " -f Activates filter mode.\n"
+        " -h Show this help message.\n"
+        " -n <tabsz> Sets the tabsize to its argument.  Default is\n"
+        "    DEFAULT_TABSZ(%d).\n"
+        " -o <outfile> Sets the output file to argument.  Default is\n"
+        "    stdout.\n"
+        " -s act as detab (use spaces).\n"
+        " -S <subst_string> Sets the substitution string.\n"
+        "    Default is spaces\n"
+        " -t act as tabber (use tabs).\n"
+        " -T don't trim trailing spaces at end of line.\n",
+        progname,
+        DEFAULT_TABSZ);
 } /* do_usage */
 
 struct pers {
@@ -173,9 +173,9 @@ struct pers {
     int flags_on;
     int flags_off;
 } personalities[] = {
-    { .name = "detab", .func = spaces },
-    { .name = "entab", .func = tabs   },
-    { .name = NULL,    .func = NULL   }
+    { .name = "detab",  .func = spaces },
+    { .name = "entab",  .func = tabs   },
+    { .name = NULL,     .func = NULL   }
 };
 
 int
