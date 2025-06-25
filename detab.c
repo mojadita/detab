@@ -77,9 +77,15 @@ spaces(int pos,   /* column at which string s must go */
        FILE *f)   /* output file */
 {
     int len = strlen(s);
+    pos %= len;
+    s += pos;
+    len -= pos;
     while (n >= len) {
         fputs(s, f);
         n -= len;
+        len += pos;
+        s -= pos;
+        pos = 0;
     }
     if (n > 0)
         fprintf(f, "%.*s", n, s);
@@ -92,7 +98,7 @@ tabs(int pos, /* column at which string s must start */
      FILE *f) /* output file */
 {
     if (n == 1) {
-        fputc(s[0], f);
+        fputc(s[pos % strlen(s)], f);
         return;
     }
     int end = pos + n; /* ending position */
@@ -261,17 +267,35 @@ main(int argc, char **argv)
                         "%s-%s.%d", in_name, progname, pid);
                 FILE *out = fopen(out_name, "wt");
                 if (!out) {
-                    ERR("%s: create: %s\n",
-                        out_name, strerror(errno));
+                    WRN("%s: create '%s': %s\n",
+                        in_name, out_name,
+                        strerror(errno));
+                    continue;
                 }
                 process(in, in_name, out);
                 fclose(in);
                 fclose(out);
-                if (rename(out_name, in_name) < 0) {
-                    WRN("cannot rename %s to %s: %s\n",
-                        out_name, in_name, strerror(errno));
+
+                /* now we need to copy back the generated file
+                 * into the original one. */
+                in = fopen(out_name, "rt");
+                if (!in) {
+                    WRN("%s: fopen temporary '%s': %s\n",
+                        in_name, out_name, strerror(errno));
                     continue;
                 }
+                out = fopen(in_name, "wt");
+                if (!out) {
+                    WRN("%s: fopen '%s', %s, temporary '%s' not deleted.\n",
+                        in_name, in_name, strerror(errno), out_name);
+                    continue;
+                }
+                int c;
+                while ((c = fgetc(in)) != EOF)
+                    fputc(c, out);
+                fclose(in);
+                fclose(out);
+                unlink(out_name);
             }
         }
     } else if (!(flags & FLAG_ANYFILETOUCHED)){
