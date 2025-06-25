@@ -10,13 +10,13 @@ INSTALL         = -/usr/bin/install
 targets         = detab detab.1.gz
 toclean         = $(targets)
 
-OS	           != uname -o
+OS             != uname -o
 
 prefix         ?= /usr/local
 bindir         ?= $(prefix)/bin
-datadir		   ?= $(prefix)/share
-mandir		   ?= $(datadir)/man
-man1dir		   ?= $(mandir)/man1
+datadir        ?= $(prefix)/share
+mandir         ?= $(datadir)/man
+man1dir        ?= $(mandir)/man1
 
 toinstall       = $(bindir)/detab \
                   $(bindir)/entab \
@@ -32,7 +32,7 @@ own            ?= $(own-$(OS))
 grp            ?= $(grp-$(OS))
 
 xmod           ?= 755
-fmod		   ?= 644
+fmod           ?= 644
 
 IFLAGS         ?= -o "$(own)" -g "$(grp)"
 
@@ -44,8 +44,8 @@ toclean += $(detab_objs)
 
 toinstall      ?= $(bindir)/detab \
                   $(bindir)/entab \
-				  $(man1dir)/detab.1.gz \
-				  $(man1dir)/entab.1.gz
+                  $(man1dir)/detab.1.gz \
+                  $(man1dir)/entab.1.gz
 
 all: $(targets)
 clean:
